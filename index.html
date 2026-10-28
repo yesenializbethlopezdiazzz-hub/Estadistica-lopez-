@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Código Python Corregido</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        pre {
+            font-family: 'Fira Code', 'Courier New', Courier, monospace;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen p-4 sm:p-6 md:p-8 flex flex-col items-center">
+
+    <div class="w-full max-w-4xl bg-gray-800 rounded-lg shadow-2xl overflow-hidden border border-gray-700">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-6 py-4 bg-gray-800 border-b border-gray-700">
+            <div class="flex items-center space-x-3">
+                <span class="text-blue-400 text-xl"><i class="fa-brands fa-python"></i></span>
+                <h1 class="text-lg font-semibold text-gray-200">código_corregido.py</h1>
+            </div>
+            <button id="copyBtn" onclick="copyCode()" class="flex items-center space-x-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-md font-medium text-sm transition duration-150 ease-in-out shadow-md">
+                <i class="fa-regular fa-copy" id="copyIcon"></i>
+                <span id="copyText">Copiar Código</span>
+            </button>
+        </div>
+
+        <!-- Code Block -->
+        <div class="p-6 overflow-x-auto bg-gray-950">
+            <pre><code id="pythonCode" class="text-sm leading-relaxed text-gray-300">import io
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+import ipywidgets as widgets
+from IPython.display import display, clear_output
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import plotly.express as px
+
+# Ajustar tema visual de matplotlib para mantener coherencia en fondo oscuro si se usa
+plt.style.use('dark_background')
+sns.set_theme(style="darkgrid")
+
+# Elementos de la interfaz de usuario (Widgets con diseño moderno)
+upload_btn = widgets.FileUpload(
+    accept='.xlsx, .xls, .csv',
+    multiple=False,
+    description='Subir Excel/CSV',
+    button_style='primary',
+    icon='upload',
+    layout=widgets.Layout(width='95%', margin='10px 0px')
+)
+
+column_selector = widgets.Dropdown(
+    options=[],
+    description='Variable Principal:',
+    disabled=True,
+    style={'description_width': 'initial'},
+    layout=widgets.Layout(width='95%', margin='10px 0px')
+)
+
+calcular_btn = widgets.Button(
+    description='Procesar Datos e Interactivos',
+    button_style='success',
+    disabled=True,
+    icon='refresh',
+    layout=widgets.Layout(width='95%', margin='15px 0px')
+)
+
+# Pestañas para organizar la visualización avanzada
+tab_visualizacion = widgets.Tab()
+
+out_config = widgets.Output()
+out_reporte = widgets.Output()
+out_vision_general = widgets.Output()
+out_tabla_datos = widgets.Output()
+
+tab_visualizacion.children = [out_config, out_reporte, out_vision_general, out_tabla_datos]
+tab_visualizacion.set_title(0, '🛠️ Configuración')
+tab_visualizacion.set_title(1, '📊 Análisis Individual')
+tab_visualizacion.set_title(2, '🌐 Visión General Multivariable')
+tab_visualizacion.set_title(3, '📋 Tabla de Datos')
+
+df_loaded = None
+
+def analizar_columna(datos, nombre_columna):
+    datos_limpios = datos.dropna().values
+    if len(datos_limpios) == 0:
+        return "La columna seleccionada no tiene datos numéricos válidos.", None
+
+    media = np.mean(datos_limpios)
+    mediana = np.median(datos_limpios)
+
+    moda_res = stats.mode(datos_limpios, keepdims=True)
+    moda = moda_res.mode[0] if len(moda_res.mode) > 0 else "N/A"
+
+    desviacion_estandar = np.std(datos_limpios, ddof=1) if len(datos_limpios) > 1 else 0.0
+    
+    # CORREGIDO: Se une la línea que estaba cortada de forma incorrecta
+    coeficiente_variacion = (desviacion_estandar / media) * 100 if media != 0 else 0.0
+
+    q1 = np.percentile(datos_limpios, 25)
+    q2 = np.percentile(datos_limpios, 50)
+    q3 = np.percentile(datos_limpios, 75)
+
+    # Análisis de Significancia Estadística (Diferencia de cero o Normalidad)
+    if len(datos_limpios) > 1:
+        stat_val, p_value = stats.ttest_1samp(datos_limpios, 0.0)
+        shapiro_stat, shapiro_p = stats.shapiro(datos_limpios) if len(datos_limpios) < 5000 else (0, 0)
+    else:
+        p_value = 1.0
+        shapiro_p = 1.0
+
+    significativo = "Sí" if p_value < 0.05 else "No"
+    es_normal = "Sí" if shapiro_p > 0.05 else "No"
+
+    df_reporte = pd.DataFrame({
+        'Métrica': [
+            'Media (Promedio)',
+            'Mediana (Q2)',
+            'Moda',
+            'Desviación Estándar',
+            'Coeficiente de Variación',
+            'Primer Cuartil (Q1)',
+            'Tercer Cuartil (Q3)',
+            'Total de Muestras',
+            'P-Valor (Diferencia de 0)',
+            '¿Es Significativo? (p < 0.05)',
+            '¿Distribución Normal? (Shapiro-Wilk)'
+        ],
+        'Valor': [
+            f"{media:.4f}",
+            f"{mediana:.4f}",
+            f"{moda}",
+            f"{desviacion_estandar:.4f}",
+            f"{coeficiente_variacion:.2f}%",
+            f"{q1:.4f}",
+            f"{q3:.4f}",
+            f"{len(datos_limpios)}",
+            f"{p_value:.5e}",
+            f"{significativo}",
+            f"{es_normal} (p-val: {shapiro_p:.4e})"
+        ]
+    })
+    return df_reporte, datos_limpios
+
+def al_subir_archivo(change):
+    global df_loaded
+    if not upload_btn.value:
+        return
+
+    # Manejo compatible de ipywidgets FileUpload según la versión
+    val = upload_btn.value
+    if isinstance(val, tuple):  # Para versiones recientes de ipywidgets
+        archivo_info = val[0]
+        nombre_archivo = archivo_info['name']
+        contenido = archivo_info['content']
+    else:  # Diccionario tradicional
+        archivo_info = list(val.values())[0]
+        contenido = archivo_info['content']
+        nombre_archivo = archivo_info['metadata']['name']
+
+    with out_config:
+        clear_output()
+        print(f"Archivo cargado exitosamente: {nombre_archivo}")
+
+# Conectar evento de subida
+upload_btn.observe(al_subir_archivo, names='value')
+
+# Mostrar la interfaz inicial
+display(upload_btn, column_selector, calcular_btn, tab_visualizacion)</code></pre>
+        </div>
+    </div>
+
+    <script>
+        function copyCode() {
+            const codeText = document.getElementById('pythonCode').innerText;
+            navigator.clipboard.writeText(codeText).then(() => {
+                const copyText = document.getElementById('copyText');
+                const copyIcon = document.getElementById('copyIcon');
+                const copyBtn = document.getElementById('copyBtn');
+
+                copyText.innerText = '¡Copiado!';
+                copyIcon.className = 'fa-solid fa-check';
+                copyBtn.classList.remove('bg-blue-600', 'hover:bg-blue-500');
+                copyBtn.classList.add('bg-green-600', 'hover:bg-green-500');
+
+                setTimeout(() => {
+                    copyText.innerText = 'Copiar Código';
+                    copyIcon.className = 'fa-regular fa-copy';
+                    copyBtn.classList.remove('bg-green-600', 'hover:bg-green-500');
+                    copyBtn.classList.add('bg-blue-600', 'hover:bg-blue-500');
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>
